@@ -9,7 +9,7 @@ function verifyJWT(req, res, next) {
   const token = header.substring('Bearer '.length);
   try {
     const payload = verifyToken(token);
-    req.auth = { userId: payload.sub, orgId: payload.org, role: payload.role, token };
+    req.auth = { userId: payload.sub, organizationId: payload.org, role: payload.role, token };
     return next();
   } catch (err) {
     return next(createError(401, 'Invalid or expired token', { code: 'UNAUTHORIZED' }));
