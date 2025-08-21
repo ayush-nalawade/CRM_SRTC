@@ -70,7 +70,7 @@ describe('Auth API', () => {
 
     const res = await request(app)
       .post('/api/auth/login')
-      .send({ organization_id: 'org_1', email: 'u@example.com', password: 'wrong' });
+      .send({ organization_id: 'org_1', email: 'u@example.com', password: 'wrongpass' });
 
     expect(res.status).toBe(401);
   });

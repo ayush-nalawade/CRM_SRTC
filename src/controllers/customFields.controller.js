@@ -67,7 +67,7 @@ async function handlePutLeadCustomFields(req, res, next) {
 		const orgId = req.auth.organizationId;
 		const entityId = req.params.id;
 		const defs = await listDefinitionsByEntity(orgId, 'lead');
-		const defById = new Map(defs.map((d) => [String(d.id), d]));
+		const defById = new Map((defs || []).map((d) => [String(d.id), d]));
 		const payload = req.body && typeof req.body === 'object' ? req.body : {};
 		// Validate based on definitions
 		for (const [defId, def] of defById.entries()) {
