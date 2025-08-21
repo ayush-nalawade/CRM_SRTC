@@ -54,6 +54,35 @@ npm start
 npm test
 ```
 
+### Auth examples
+
+Register:
+
+```bash
+curl -X POST http://localhost:4000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "organization_id": "org_123",
+    "email": "alice@example.com",
+    "password": "strongpassword",
+    "first_name": "Alice",
+    "last_name": "Doe",
+    "role": "admin"
+  }'
+```
+
+Login:
+
+```bash
+curl -X POST http://localhost:4000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "organization_id": "org_123",
+    "email": "alice@example.com",
+    "password": "strongpassword"
+  }'
+```
+
 ### Structure
 
 ```
