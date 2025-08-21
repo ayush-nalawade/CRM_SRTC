@@ -150,6 +150,58 @@ src/
     jwt.js
 index.js
 ```
+### Custom fields
+
+Definitions (admin-only):
+```bash
+curl -X POST http://localhost:4000/api/custom-fields \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{
+    "entity_type": "lead",
+    "name": "Budget",
+    "type": "number",
+    "is_required": false
+  }'
+
+curl -H "Authorization: Bearer $TOKEN" "http://localhost:4000/api/custom-fields?entity_type=lead"
+```
+
+Lead values (replace as a JSON map of {definition_id: value}):
+```bash
+curl -X PUT http://localhost:4000/api/leads/$LEAD_ID/custom-fields \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{
+    "DEFINITION_ID_A": 10000,
+    "DEFINITION_ID_B": "Priority A"
+  }'
+
+curl -H "Authorization: Bearer $TOKEN" http://localhost:4000/api/leads/$LEAD_ID/custom-fields
+```
+
+Schema examples:
+```sql
+CREATE TABLE IF NOT EXISTS custom_field_definitions (
+  organization_id uuid,
+  id uuid,
+  entity_type text, -- e.g., 'lead'
+  name text,
+  type text, -- 'text' | 'number' | 'date' | 'dropdown' | 'checkbox'
+  is_required boolean,
+  options list<text>,
+  created_at timestamp,
+  updated_at timestamp,
+  PRIMARY KEY ((organization_id), id)
+);
+
+CREATE TABLE IF NOT EXISTS custom_field_values (
+  organization_id uuid,
+  entity_id uuid, -- lead id
+  definition_id uuid,
+  value text, -- store as text; coerce at edges
+  updated_at timestamp,
+  PRIMARY KEY ((organization_id), entity_id, definition_id)
+);
+```
 
 Notes:
 - `src/config/cassandra.js` exports `session`, `connectCassandra()`, and `run(query, params, options)`.
