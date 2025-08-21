@@ -1,5 +1,6 @@
 const express = require('express');
 const authRoutes = require('./auth.routes');
+const leadsRoutes = require('./leads.routes');
 
 const router = express.Router();
 
@@ -8,6 +9,7 @@ router.get('/v1/ping', (req, res) => {
 });
 
 router.use('/auth', authRoutes);
+router.use('/', leadsRoutes);
 
 module.exports = router;
 

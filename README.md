@@ -17,6 +17,50 @@ Production-ready Express server scaffold for a multi-tenant CRM backed by Cassan
 Create `.env` (see `.env.example`):
 
 ```
+
+### Cassandra schema (leads)
+
+```sql
+-- Primary leads table
+CREATE TABLE IF NOT EXISTS leads (
+  organization_id text,
+  id uuid,
+  first_name text,
+  last_name text,
+  email text,
+  phone text,
+  company text,
+  stage_id text,
+  status text,
+  assigned_to text,
+  created_by text,
+  created_at timestamp,
+  updated_at timestamp,
+  PRIMARY KEY ((organization_id), id)
+);
+
+-- Denormalized index tables
+CREATE TABLE IF NOT EXISTS leads_by_assigned (
+  organization_id text,
+  assigned_to text,
+  id uuid,
+  PRIMARY KEY ((organization_id), assigned_to, id)
+);
+
+CREATE TABLE IF NOT EXISTS leads_by_stage (
+  organization_id text,
+  stage_id text,
+  id uuid,
+  PRIMARY KEY ((organization_id), stage_id, id)
+);
+
+CREATE TABLE IF NOT EXISTS leads_by_status (
+  organization_id text,
+  status text,
+  id uuid,
+  PRIMARY KEY ((organization_id), status, id)
+);
+```
 PORT=4000
 NODE_ENV=development
 CASSANDRA_CONTACT_POINTS=127.0.0.1
