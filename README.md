@@ -109,4 +109,32 @@ Notes:
 - `src/config/cassandra.js` exports `session`, `connectCassandra()`, and `run(query, params, options)`.
 - `src/middleware/auth.js` reads Bearer token and sets `req.user`.
 
+### Cassandra schema (users)
+
+Example CQL for user tables. Adjust types/names to your standards.
+
+```sql
+-- Primary table partitioned by organization, clustered by user id
+CREATE TABLE IF NOT EXISTS users (
+  organization_id text,
+  id uuid,
+  email text,
+  password_hash text,
+  first_name text,
+  last_name text,
+  role text,
+  created_at timestamp,
+  updated_at timestamp,
+  PRIMARY KEY ((organization_id), id)
+);
+
+-- Lookup table to fetch by email within an org, avoids ALLOW FILTERING
+CREATE TABLE IF NOT EXISTS users_by_email (
+  organization_id text,
+  email text,
+  id uuid,
+  PRIMARY KEY ((organization_id), email)
+);
+```
+
 
