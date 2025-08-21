@@ -30,10 +30,12 @@ CREATE TABLE IF NOT EXISTS leads (
   email text,
   phone text,
   company text,
-  stage_id text,
+  stage_id uuid,
   status text,
-  assigned_to text,
-  created_by text,
+  assigned_to uuid,
+  owner_id uuid,
+  source text,
+  title text,
   created_at timestamp,
   updated_at timestamp,
   PRIMARY KEY ((organization_id), id)
@@ -42,14 +44,14 @@ CREATE TABLE IF NOT EXISTS leads (
 -- Denormalized index tables
 CREATE TABLE IF NOT EXISTS leads_by_assigned (
   organization_id text,
-  assigned_to text,
+  assigned_to uuid,
   id uuid,
   PRIMARY KEY ((organization_id), assigned_to, id)
 );
 
 CREATE TABLE IF NOT EXISTS leads_by_stage (
   organization_id text,
-  stage_id text,
+  stage_id uuid,
   id uuid,
   PRIMARY KEY ((organization_id), stage_id, id)
 );

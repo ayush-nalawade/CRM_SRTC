@@ -13,18 +13,20 @@ const leadColumns = [
 	'stage_id',
 	'status',
 	'assigned_to',
-	'created_by',
+	'owner_id',
+	'source',
+	'title',
 	'created_at',
 	'updated_at',
 ];
 
-async function insertLead({ organization_id, first_name = null, last_name = null, email = null, phone = null, company = null, stage_id = null, status = null, assigned_to = null, created_by = null }) {
+async function insertLead({ organization_id, first_name = null, last_name = null, email = null, phone = null, company = null, stage_id = null, status = null, assigned_to = null, owner_id = null, source = null, title = null }) {
 	const id = uuidv4();
 	const now = dayjs().toDate();
 	const query = `INSERT INTO leads (
-		organization_id, id, first_name, last_name, email, phone, company, stage_id, status, assigned_to, created_by, created_at, updated_at
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-	const params = [organization_id, id, first_name, last_name, email, phone, company, stage_id, status, assigned_to, created_by, now, now];
+		organization_id, id, first_name, last_name, email, phone, company, stage_id, status, assigned_to, owner_id, source, title, created_at, updated_at
+	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+	const params = [organization_id, id, first_name, last_name, email, phone, company, stage_id, status, assigned_to, owner_id, source, title, now, now];
 	await run(query, params);
 
 	// Denormalized tables
@@ -38,7 +40,7 @@ async function insertLead({ organization_id, first_name = null, last_name = null
 		await run(`INSERT INTO leads_by_status (organization_id, status, id) VALUES (?, ?, ?)`, [organization_id, status, id]);
 	}
 
-	return { organization_id, id, first_name, last_name, email, phone, company, stage_id, status, assigned_to, created_by, created_at: now, updated_at: now };
+	return { organization_id, id, first_name, last_name, email, phone, company, stage_id, status, assigned_to, owner_id, source, title, created_at: now, updated_at: now };
 }
 
 async function getLeadById(organization_id, id) {
@@ -50,7 +52,7 @@ async function getLeadById(organization_id, id) {
 async function updateLead(organization_id, id, patch) {
 	const existing = await getLeadById(organization_id, id);
 	if (!existing) return null;
-	const allowed = ['first_name', 'last_name', 'email', 'phone', 'company', 'stage_id', 'status', 'assigned_to'];
+	const allowed = ['first_name', 'last_name', 'email', 'phone', 'company', 'stage_id', 'status', 'assigned_to', 'owner_id', 'source', 'title'];
 	const setParts = [];
 	const params = [];
 	for (const key of allowed) {

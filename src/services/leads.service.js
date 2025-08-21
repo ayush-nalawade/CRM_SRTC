@@ -14,16 +14,19 @@ const createLeadSchema = z.object({
 	email: z.string().email().optional(),
 	phone: z.string().min(5).optional(),
 	company: z.string().min(1).optional(),
-	stage_id: z.string().min(1).optional(),
+	stage_id: z.string().uuid().optional(),
 	status: z.string().min(1).optional(),
-	assigned_to: z.string().min(1).optional(),
+	assigned_to: z.string().uuid().optional(),
+	owner_id: z.string().uuid().optional(),
+	source: z.string().min(1).optional(),
+	title: z.string().min(1).optional(),
 });
 
 const updateLeadSchema = createLeadSchema; // partial updates
 
 async function createLead(orgId, actorUserId, payload) {
 	const data = createLeadSchema.parse(payload);
-	const lead = await insertLead({ organization_id: orgId, created_by: actorUserId, ...data });
+	const lead = await insertLead({ organization_id: orgId, owner_id: data.owner_id || actorUserId, ...data });
 	return lead;
 }
 
