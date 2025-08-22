@@ -7,6 +7,7 @@ const stagesRoutes = require('./stages.routes');
 const journeyRoutes = require('./journey.routes');
 const activitiesRoutes = require('./activities.routes');
 const auditRoutes = require('./audit.routes');
+const reportsRoutes = require('./reports.routes');
 
 const router = express.Router();
 
@@ -22,6 +23,7 @@ router.use('/', stagesRoutes);
 router.use('/', journeyRoutes);
 router.use('/', activitiesRoutes);
 router.use('/', auditRoutes);
+router.use('/', reportsRoutes);
 
 module.exports = router;
 
