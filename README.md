@@ -17,52 +17,6 @@ Production-ready Express server scaffold for a multi-tenant CRM backed by Cassan
 Create `.env` (see `.env.example`):
 
 ```
-
-### Cassandra schema (leads)
-
-```sql
--- Primary leads table
-CREATE TABLE IF NOT EXISTS leads (
-  organization_id text,
-  id uuid,
-  first_name text,
-  last_name text,
-  email text,
-  phone text,
-  company text,
-  stage_id uuid,
-  status text,
-  assigned_to uuid,
-  owner_id uuid,
-  source text,
-  title text,
-  created_at timestamp,
-  updated_at timestamp,
-  PRIMARY KEY ((organization_id), id)
-);
-
--- Denormalized index tables
-CREATE TABLE IF NOT EXISTS leads_by_assigned (
-  organization_id text,
-  assigned_to uuid,
-  id uuid,
-  PRIMARY KEY ((organization_id), assigned_to, id)
-);
-
-CREATE TABLE IF NOT EXISTS leads_by_stage (
-  organization_id text,
-  stage_id uuid,
-  id uuid,
-  PRIMARY KEY ((organization_id), stage_id, id)
-);
-
-CREATE TABLE IF NOT EXISTS leads_by_status (
-  organization_id text,
-  status text,
-  id uuid,
-  PRIMARY KEY ((organization_id), status, id)
-);
-```
 PORT=4000
 NODE_ENV=development
 CASSANDRA_CONTACT_POINTS=127.0.0.1
@@ -129,6 +83,94 @@ curl -X POST http://localhost:4000/api/auth/login \
   }'
 ```
 
+### Pipeline stages
+
+Create stages (admin only):
+
+```bash
+curl -X POST http://localhost:4000/api/stages \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{
+    "name": "Qualification",
+    "description": "Initial lead qualification",
+    "order": 1,
+    "is_final": false
+  }'
+
+curl -X POST http://localhost:4000/api/stages \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{
+    "name": "Proposal",
+    "description": "Proposal sent to prospect",
+    "order": 2,
+    "is_final": false
+  }'
+
+curl -X POST http://localhost:4000/api/stages \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{
+    "name": "Won",
+    "description": "Deal closed successfully",
+    "order": 3,
+    "is_final": true
+  }'
+```
+
+List stages:
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" http://localhost:4000/api/stages
+```
+
+### Lead stage transitions
+
+Move lead to next stage:
+
+```bash
+curl -X POST http://localhost:4000/api/leads/$LEAD_ID/transition \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{
+    "to_stage_id": "STAGE_UUID",
+    "notes": "Proposal sent, waiting for response"
+  }'
+```
+
+View lead journey:
+
+```bash
+curl -H "Authorization: Bearer $TOKEN" http://localhost:4000/api/leads/$LEAD_ID/journey
+```
+
+### Custom fields
+
+Definitions (admin-only):
+
+```bash
+curl -X POST http://localhost:4000/api/custom-fields \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{
+    "entity_type": "lead",
+    "name": "Budget",
+    "type": "number",
+    "is_required": false
+  }'
+
+curl -H "Authorization: Bearer $TOKEN" "http://localhost:4000/api/custom-fields?entity_type=lead"
+```
+
+Lead values (replace as a JSON map of {definition_id: value}):
+
+```bash
+curl -X PUT http://localhost:4000/api/leads/$LEAD_ID/custom-fields \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{
+    "DEFINITION_ID_A": 10000,
+    "DEFINITION_ID_B": "Priority A"
+  }'
+
+curl -H "Authorization: Bearer $TOKEN" http://localhost:4000/api/leads/$LEAD_ID/custom-fields
+```
+
 ### Structure
 
 ```
@@ -149,58 +191,6 @@ src/
     crypto.js
     jwt.js
 index.js
-```
-### Custom fields
-
-Definitions (admin-only):
-```bash
-curl -X POST http://localhost:4000/api/custom-fields \
-  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{
-    "entity_type": "lead",
-    "name": "Budget",
-    "type": "number",
-    "is_required": false
-  }'
-
-curl -H "Authorization: Bearer $TOKEN" "http://localhost:4000/api/custom-fields?entity_type=lead"
-```
-
-Lead values (replace as a JSON map of {definition_id: value}):
-```bash
-curl -X PUT http://localhost:4000/api/leads/$LEAD_ID/custom-fields \
-  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{
-    "DEFINITION_ID_A": 10000,
-    "DEFINITION_ID_B": "Priority A"
-  }'
-
-curl -H "Authorization: Bearer $TOKEN" http://localhost:4000/api/leads/$LEAD_ID/custom-fields
-```
-
-Schema examples:
-```sql
-CREATE TABLE IF NOT EXISTS custom_field_definitions (
-  organization_id uuid,
-  id uuid,
-  entity_type text, -- e.g., 'lead'
-  name text,
-  type text, -- 'text' | 'number' | 'date' | 'dropdown' | 'checkbox'
-  is_required boolean,
-  options list<text>,
-  created_at timestamp,
-  updated_at timestamp,
-  PRIMARY KEY ((organization_id), id)
-);
-
-CREATE TABLE IF NOT EXISTS custom_field_values (
-  organization_id uuid,
-  entity_id uuid, -- lead id
-  definition_id uuid,
-  value text, -- store as text; coerce at edges
-  updated_at timestamp,
-  PRIMARY KEY ((organization_id), entity_id, definition_id)
-);
 ```
 
 Notes:
@@ -232,6 +222,110 @@ CREATE TABLE IF NOT EXISTS users_by_email (
   email text,
   id uuid,
   PRIMARY KEY ((organization_id), email)
+);
+```
+
+### Cassandra schema (leads)
+
+Example CQL for user tables. Adjust types/names to your standards.
+
+```sql
+-- Primary table partitioned by organization, clustered by user id
+CREATE TABLE IF NOT EXISTS leads (
+  organization_id text,
+  id uuid,
+  first_name text,
+  last_name text,
+  email text,
+  phone text,
+  company text,
+  stage_id text,
+  status text,
+  assigned_to text,
+  created_by text,
+  created_at timestamp,
+  updated_at timestamp,
+  PRIMARY KEY ((organization_id), id)
+);
+
+-- Denormalized index tables
+CREATE TABLE IF NOT EXISTS leads_by_assigned (
+  organization_id text,
+  assigned_to text,
+  id uuid,
+  PRIMARY KEY ((organization_id), assigned_to, id)
+);
+
+CREATE TABLE IF NOT EXISTS leads_by_stage (
+  organization_id text,
+  stage_id text,
+  id uuid,
+  PRIMARY KEY ((organization_id), stage_id, id)
+);
+
+CREATE TABLE IF NOT EXISTS leads_by_status (
+  organization_id text,
+  status text,
+  id uuid,
+  PRIMARY KEY ((organization_id), status, id)
+);
+```
+
+### Cassandra schema (stages and journey)
+
+```sql
+-- Pipeline stages
+CREATE TABLE IF NOT EXISTS stages (
+  organization_id uuid,
+  id uuid,
+  name text,
+  description text,
+  is_final boolean,
+  order int,
+  created_at timestamp,
+  updated_at timestamp,
+  PRIMARY KEY ((organization_id), id)
+);
+
+-- Lead journey tracking
+CREATE TABLE IF NOT EXISTS lead_journey (
+  organization_id uuid,
+  lead_id uuid,
+  transition_id text,
+  from_stage_id uuid,
+  to_stage_id uuid,
+  changed_by uuid,
+  notes text,
+  changed_at timestamp,
+  PRIMARY KEY ((organization_id), lead_id, transition_id)
+);
+```
+
+### Cassandra schema (custom fields)
+
+Schema examples:
+
+```sql
+CREATE TABLE IF NOT EXISTS custom_field_definitions (
+  organization_id uuid,
+  id uuid,
+  entity_type text, -- e.g., 'lead'
+  name text,
+  type text, -- 'text' | 'number' | 'date' | 'dropdown' | 'checkbox'
+  is_required boolean,
+  options list<text>,
+  created_at timestamp,
+  updated_at timestamp,
+  PRIMARY KEY ((organization_id), id)
+);
+
+CREATE TABLE IF NOT EXISTS custom_field_values (
+  organization_id uuid,
+  entity_id uuid, -- lead id
+  definition_id uuid,
+  value text, -- store as text; coerce at edges
+  updated_at timestamp,
+  PRIMARY KEY ((organization_id), entity_id, definition_id)
 );
 ```
 

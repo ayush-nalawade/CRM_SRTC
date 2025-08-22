@@ -7,6 +7,7 @@ const {
 	handleUpdateLead,
 	handleDeleteLead,
 	handleListLeads,
+	handleTransitionLeadStage,
 } = require('../controllers/leads.controller');
 
 const router = express.Router();
@@ -25,6 +26,9 @@ router.patch('/leads/:id', verifyJWT, requireRole('admin', 'manager', 'sales'), 
 
 // Delete lead (admin or manager only)
 router.delete('/leads/:id', verifyJWT, requireRole('admin', 'manager'), handleDeleteLead);
+
+// Stage transition (sales and above)
+router.post('/leads/:id/transition', verifyJWT, requireRole('admin', 'manager', 'sales'), handleTransitionLeadStage);
 
 module.exports = router;
 

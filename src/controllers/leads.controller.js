@@ -1,4 +1,5 @@
-const { createLead, getLead, updateLead, removeLead, listLeads } = require('../services/leads.service');
+const { createLead, getLead, updateLead, removeLead, listLeads, transitionLeadStage } = require('../services/leads.service');
+const { listJourneyByLead } = require('../models/leadJourney.model');
 
 async function handleCreateLead(req, res, next) {
 	try {
@@ -61,12 +62,37 @@ async function handleListLeads(req, res, next) {
 	}
 }
 
+async function handleTransitionLeadStage(req, res, next) {
+	try {
+		const orgId = req.auth.organizationId;
+		const userId = req.auth.userId;
+		const { to_stage_id, notes } = req.body;
+		const lead = await transitionLeadStage(orgId, req.params.id, to_stage_id, userId, notes);
+		return res.json({ success: true, lead });
+	} catch (err) {
+		return next(err);
+	}
+}
+
+async function handleGetLeadJourney(req, res, next) {
+	try {
+		const orgId = req.auth.organizationId;
+		const leadId = req.params.id;
+		const journey = await listJourneyByLead(orgId, leadId);
+		return res.json({ success: true, journey });
+	} catch (err) {
+		return next(err);
+	}
+}
+
 module.exports = {
 	handleCreateLead,
 	handleGetLead,
 	handleUpdateLead,
 	handleDeleteLead,
 	handleListLeads,
+	handleTransitionLeadStage,
+	handleGetLeadJourney,
 };
 
 

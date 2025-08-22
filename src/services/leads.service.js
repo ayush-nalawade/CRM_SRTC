@@ -7,6 +7,8 @@ const {
 	deleteLead,
 	listLeadsByOrg,
 } = require('../models/leads.model');
+const { getStageById } = require('../models/stages.model');
+const { insertJourneyEntry } = require('../models/leadJourney.model');
 
 const createLeadSchema = z.object({
 	first_name: z.string().min(1).optional(),
@@ -23,6 +25,11 @@ const createLeadSchema = z.object({
 });
 
 const updateLeadSchema = createLeadSchema; // partial updates
+
+const transitionSchema = z.object({
+	to_stage_id: z.string().uuid(),
+	notes: z.string().optional(),
+});
 
 async function createLead(orgId, actorUserId, payload) {
 	const data = createLeadSchema.parse(payload);
@@ -53,12 +60,41 @@ async function listLeads(orgId, filters) {
 	return listLeadsByOrg(orgId, { stage_id, status, assigned_to, limit, pageState, q });
 }
 
+async function transitionLeadStage(orgId, leadId, toStageId, userId, notes) {
+	// Get current lead
+	const lead = await getLeadById(orgId, leadId);
+	if (!lead) {
+		throw createError(404, 'Lead not found', { code: 'NOT_FOUND' });
+	}
+
+	// Validate target stage exists in same org
+	const targetStage = await getStageById(orgId, toStageId);
+	if (!targetStage) {
+		throw createError(400, 'Target stage not found', { code: 'INVALID_STAGE' });
+	}
+
+	// Record journey entry
+	await insertJourneyEntry({
+		organization_id: orgId,
+		lead_id: leadId,
+		from_stage_id: lead.stage_id,
+		to_stage_id: toStageId,
+		changed_by: userId,
+		notes,
+	});
+
+	// Update lead stage
+	const updated = await updateLeadModel(orgId, leadId, { stage_id: toStageId });
+	return updated;
+}
+
 module.exports = {
 	createLead,
 	getLead,
 	updateLead,
 	removeLead,
 	listLeads,
+	transitionLeadStage,
 };
 
 
