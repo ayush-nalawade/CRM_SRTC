@@ -16,11 +16,16 @@ jest.mock('../src/models/stages.model', () => ({
 	getStageById: jest.fn(),
 }));
 
+jest.mock('../src/models/leadJourney.model', () => ({
+	insertJourneyEntry: jest.fn(),
+}));
+
 const app = require('../src/app');
 const jwtUtil = require('../src/utils/jwt');
 const auditModel = require('../src/models/audit.model');
 const leadsModel = require('../src/models/leads.model');
 const stagesModel = require('../src/models/stages.model');
+const journeyModel = require('../src/models/leadJourney.model');
 
 describe('Audit API and middleware', () => {
 	const adminToken = jwtUtil.signToken({ sub: 'u_admin', org: 'org_1', role: 'admin' });
@@ -40,6 +45,7 @@ describe('Audit API and middleware', () => {
 	test('Audit middleware writes on stage transition', async () => {
 		leadsModel.getLeadById.mockResolvedValueOnce({ id: 'l1', organization_id: 'org_1', stage_id: 'old' });
 		stagesModel.getStageById.mockResolvedValueOnce({ id: 'new', organization_id: 'org_1' });
+		journeyModel.insertJourneyEntry.mockResolvedValueOnce(true);
 		leadsModel.updateLead.mockResolvedValueOnce({ id: 'l1', stage_id: 'new' });
 		const res = await request(app)
 			.post('/api/leads/l1/transition')
