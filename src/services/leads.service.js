@@ -41,9 +41,11 @@ const transitionSchema = z.object({
 async function createLead(orgId, actorUserId, payload) {
 	const data = createLeadSchema.parse(payload);
 	const lead = await insertLead({ organization_id: orgId, owner_id: data.owner_id || actorUserId, ...data });
-	// reporting tables
-	await upsertLeadByOwner({ organization_id: orgId, owner_id: lead.owner_id || actorUserId, created_at: lead.created_at, id: lead.id });
-	if (lead.stage_id) await upsertLeadByStage({ organization_id: orgId, stage_id: lead.stage_id, created_at: lead.created_at, id: lead.id });
+	// reporting tables (best-effort)
+	try {
+		await upsertLeadByOwner({ organization_id: orgId, owner_id: lead.owner_id || actorUserId, created_at: lead.created_at, id: lead.id });
+		if (lead.stage_id) await upsertLeadByStage({ organization_id: orgId, stage_id: lead.stage_id, created_at: lead.created_at, id: lead.id });
+	} catch (_) {}
 	return lead;
 }
 
@@ -57,11 +59,13 @@ async function updateLead(orgId, id, actor, payload) {
 	const prev = await getLeadById(orgId, id);
 	const data = updateLeadSchema.parse(payload);
 	const updated = await updateLeadModel(orgId, id, data);
-	// reporting owner change
-	if (data.owner_id && prev && prev.owner_id !== data.owner_id) {
-		if (prev.owner_id) await deleteLeadByOwner({ organization_id: orgId, owner_id: prev.owner_id, created_at: prev.created_at, id });
-		await upsertLeadByOwner({ organization_id: orgId, owner_id: data.owner_id, created_at: prev.created_at, id });
-	}
+	// reporting owner change (best-effort)
+	try {
+		if (data.owner_id && prev && prev.owner_id !== data.owner_id) {
+			if (prev.owner_id) await deleteLeadByOwner({ organization_id: orgId, owner_id: prev.owner_id, created_at: prev.created_at, id });
+			await upsertLeadByOwner({ organization_id: orgId, owner_id: data.owner_id, created_at: prev.created_at, id });
+		}
+	} catch (_) {}
 	return updated;
 }
 
@@ -89,7 +93,7 @@ async function transitionLeadStage(orgId, leadId, toStageId, userId, notes) {
 	}
 
 	// Record journey entry
-	const journey = await insertJourneyEntry({
+	await insertJourneyEntry({
 		organization_id: orgId,
 		lead_id: leadId,
 		from_stage_id: lead.stage_id,
@@ -98,10 +102,12 @@ async function transitionLeadStage(orgId, leadId, toStageId, userId, notes) {
 		notes,
 	});
 
-	// Update reporting tables
-	if (lead.stage_id) await deleteLeadByStage({ organization_id: orgId, stage_id: lead.stage_id, created_at: lead.created_at, id: leadId });
-	await upsertLeadByStage({ organization_id: orgId, stage_id: toStageId, created_at: lead.created_at, id: leadId });
-	await insertJourneyByDay({ organization_id: orgId, yyyymmdd: require('dayjs')().format('YYYYMMDD'), changed_at: new Date(), lead_id: leadId, to_stage_id: toStageId });
+	// Update reporting tables (best-effort)
+	try {
+		if (lead.stage_id) await deleteLeadByStage({ organization_id: orgId, stage_id: lead.stage_id, created_at: lead.created_at, id: leadId });
+		await upsertLeadByStage({ organization_id: orgId, stage_id: toStageId, created_at: lead.created_at, id: leadId });
+		await insertJourneyByDay({ organization_id: orgId, yyyymmdd: require('dayjs')().format('YYYYMMDD'), changed_at: new Date(), lead_id: leadId, to_stage_id: toStageId });
+	} catch (_) {}
 
 	// Update lead stage
 	const updated = await updateLeadModel(orgId, leadId, { stage_id: toStageId });
