@@ -29,15 +29,15 @@ async function insertLead({ organization_id, first_name = null, last_name = null
 	const params = [organization_id, id, first_name, last_name, email, phone, company, stage_id, status, assigned_to, owner_id, source, title, now, now];
 	await run(query, params);
 
-	// Denormalized tables
+	// Denormalized tables (include created_at for clustering)
 	if (assigned_to) {
-		await run(`INSERT INTO leads_by_assigned (organization_id, assigned_to, id) VALUES (?, ?, ?)`, [organization_id, assigned_to, id]);
+		await run(`INSERT INTO leads_by_assigned (organization_id, assigned_to, created_at, id) VALUES (?, ?, ?, ?)`, [organization_id, assigned_to, now, id]);
 	}
 	if (stage_id) {
 		await run(`INSERT INTO leads_by_stage (organization_id, stage_id, id) VALUES (?, ?, ?)`, [organization_id, stage_id, id]);
 	}
 	if (status) {
-		await run(`INSERT INTO leads_by_status (organization_id, status, id) VALUES (?, ?, ?)`, [organization_id, status, id]);
+		await run(`INSERT INTO leads_by_status (organization_id, status, created_at, id) VALUES (?, ?, ?, ?)`, [organization_id, status, now, id]);
 	}
 
 	return { organization_id, id, first_name, last_name, email, phone, company, stage_id, status, assigned_to, owner_id, source, title, created_at: now, updated_at: now };
@@ -73,23 +73,23 @@ async function updateLead(organization_id, id, patch) {
 	const newStatus = Object.prototype.hasOwnProperty.call(patch, 'status') ? patch.status : existing.status;
 
 	if (existing.assigned_to && existing.assigned_to !== newAssigned) {
-		await run(`DELETE FROM leads_by_assigned WHERE organization_id = ? AND assigned_to = ? AND id = ?`, [organization_id, existing.assigned_to, id]);
+		await run(`DELETE FROM leads_by_assigned WHERE organization_id = ? AND assigned_to = ? AND created_at = ? AND id = ?`, [organization_id, existing.assigned_to, existing.created_at, id]);
 	}
 	if (existing.stage_id && existing.stage_id !== newStage) {
 		await run(`DELETE FROM leads_by_stage WHERE organization_id = ? AND stage_id = ? AND id = ?`, [organization_id, existing.stage_id, id]);
 	}
 	if (existing.status && existing.status !== newStatus) {
-		await run(`DELETE FROM leads_by_status WHERE organization_id = ? AND status = ? AND id = ?`, [organization_id, existing.status, id]);
+		await run(`DELETE FROM leads_by_status WHERE organization_id = ? AND status = ? AND created_at = ? AND id = ?`, [organization_id, existing.status, existing.created_at, id]);
 	}
 
 	if (newAssigned && newAssigned !== existing.assigned_to) {
-		await run(`INSERT INTO leads_by_assigned (organization_id, assigned_to, id) VALUES (?, ?, ?)`, [organization_id, newAssigned, id]);
+		await run(`INSERT INTO leads_by_assigned (organization_id, assigned_to, created_at, id) VALUES (?, ?, ?, ?)`, [organization_id, newAssigned, existing.created_at, id]);
 	}
 	if (newStage && newStage !== existing.stage_id) {
 		await run(`INSERT INTO leads_by_stage (organization_id, stage_id, id) VALUES (?, ?, ?)`, [organization_id, newStage, id]);
 	}
 	if (newStatus && newStatus !== existing.status) {
-		await run(`INSERT INTO leads_by_status (organization_id, status, id) VALUES (?, ?, ?)`, [organization_id, newStatus, id]);
+		await run(`INSERT INTO leads_by_status (organization_id, status, created_at, id) VALUES (?, ?, ?, ?)`, [organization_id, newStatus, existing.created_at, id]);
 	}
 
 	return getLeadById(organization_id, id);
@@ -101,13 +101,13 @@ async function deleteLead(organization_id, id) {
 	await run(query, [organization_id, id]);
 	if (existing) {
 		if (existing.assigned_to) {
-			await run(`DELETE FROM leads_by_assigned WHERE organization_id = ? AND assigned_to = ? AND id = ?`, [organization_id, existing.assigned_to, id]);
+			await run(`DELETE FROM leads_by_assigned WHERE organization_id = ? AND assigned_to = ? AND created_at = ? AND id = ?`, [organization_id, existing.assigned_to, existing.created_at, id]);
 		}
 		if (existing.stage_id) {
 			await run(`DELETE FROM leads_by_stage WHERE organization_id = ? AND stage_id = ? AND id = ?`, [organization_id, existing.stage_id, id]);
 		}
 		if (existing.status) {
-			await run(`DELETE FROM leads_by_status WHERE organization_id = ? AND status = ? AND id = ?`, [organization_id, existing.status, id]);
+			await run(`DELETE FROM leads_by_status WHERE organization_id = ? AND status = ? AND created_at = ? AND id = ?`, [organization_id, existing.status, existing.created_at, id]);
 		}
 	}
 	return true;

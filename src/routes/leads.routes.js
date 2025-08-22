@@ -9,6 +9,8 @@ const {
 	handleDeleteLead,
 	handleListLeads,
 	handleTransitionLeadStage,
+	handleListLeadsByAssigned,
+	handleListLeadsByStatus,
 } = require('../controllers/leads.controller');
 
 const router = express.Router();
@@ -18,6 +20,10 @@ router.post('/leads', verifyJWT, requireRole('admin', 'manager', 'sales'), audit
 
 // List leads (manager and admin view all; sales will still see all for now)
 router.get('/leads', verifyJWT, requireRole('admin', 'manager', 'sales'), handleListLeads);
+
+// Filtered lists backed by query tables
+router.get('/leads/assigned/:userId', verifyJWT, requireRole('admin', 'manager', 'sales'), handleListLeadsByAssigned);
+router.get('/leads/status/:status', verifyJWT, requireRole('admin', 'manager', 'sales'), handleListLeadsByStatus);
 
 // Get lead by id
 router.get('/leads/:id', verifyJWT, requireRole('admin', 'manager', 'sales'), handleGetLead);

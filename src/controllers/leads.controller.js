@@ -62,6 +62,26 @@ async function handleListLeads(req, res, next) {
 	}
 }
 
+async function handleListLeadsByAssigned(req, res, next) {
+	try {
+		const orgId = req.auth.organizationId;
+		const assigned_to = req.params.userId;
+		const { limit, pageState } = req.query;
+		const result = await listLeads(orgId, { assigned_to, limit: limit ? Number(limit) : undefined, pageState });
+		return res.json({ success: true, ...result });
+	} catch (err) { return next(err); }
+}
+
+async function handleListLeadsByStatus(req, res, next) {
+	try {
+		const orgId = req.auth.organizationId;
+		const status = req.params.status;
+		const { limit, pageState } = req.query;
+		const result = await listLeads(orgId, { status, limit: limit ? Number(limit) : undefined, pageState });
+		return res.json({ success: true, ...result });
+	} catch (err) { return next(err); }
+}
+
 async function handleTransitionLeadStage(req, res, next) {
 	try {
 		const orgId = req.auth.organizationId;
@@ -91,6 +111,8 @@ module.exports = {
 	handleUpdateLead,
 	handleDeleteLead,
 	handleListLeads,
+	handleListLeadsByAssigned,
+	handleListLeadsByStatus,
 	handleTransitionLeadStage,
 	handleGetLeadJourney,
 };
