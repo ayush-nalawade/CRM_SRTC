@@ -7,25 +7,24 @@ jest.mock('../src/models/audit.model', () => ({
 	listAudits: jest.fn(),
 }));
 
-// Mock a simple route to verify middleware writes audit
-jest.mock('../src/routes/leads.routes', () => {
-	const express = require('express');
-	const { verifyJWT } = require('../src/middleware/auth');
-	const { requireRole } = require('../src/middleware/requireRole');
-	const { audit } = require('../src/middleware/audit');
-	const router = express.Router();
-	router.post('/leads', verifyJWT, requireRole('admin', 'manager', 'sales'), audit('lead', 'create'), (req, res) => {
-		return res.status(201).json({ success: true, lead: { id: 'lead_x' } });
-	});
-	module.exports = router;
-});
+jest.mock('../src/models/leads.model', () => ({
+	getLeadById: jest.fn(),
+	updateLead: jest.fn(),
+}));
+
+jest.mock('../src/models/stages.model', () => ({
+	getStageById: jest.fn(),
+}));
 
 const app = require('../src/app');
 const jwtUtil = require('../src/utils/jwt');
 const auditModel = require('../src/models/audit.model');
+const leadsModel = require('../src/models/leads.model');
+const stagesModel = require('../src/models/stages.model');
 
 describe('Audit API and middleware', () => {
 	const adminToken = jwtUtil.signToken({ sub: 'u_admin', org: 'org_1', role: 'admin' });
+	const salesToken = jwtUtil.signToken({ sub: 'u_sales', org: 'org_1', role: 'sales' });
 
 	beforeEach(() => jest.clearAllMocks());
 
@@ -38,13 +37,15 @@ describe('Audit API and middleware', () => {
 		expect(res.body.items.length).toBe(1);
 	});
 
-	test('Audit middleware writes on successful lead create', async () => {
-		const token = jwtUtil.signToken({ sub: 'u_sales', org: 'org_1', role: 'sales' });
+	test('Audit middleware writes on stage transition', async () => {
+		leadsModel.getLeadById.mockResolvedValueOnce({ id: 'l1', organization_id: 'org_1', stage_id: 'old' });
+		stagesModel.getStageById.mockResolvedValueOnce({ id: 'new', organization_id: 'org_1' });
+		leadsModel.updateLead.mockResolvedValueOnce({ id: 'l1', stage_id: 'new' });
 		const res = await request(app)
-			.post('/api/leads')
-			.set('Authorization', `Bearer ${token}`)
-			.send({ first_name: 'A' });
-		expect(res.status).toBe(201);
+			.post('/api/leads/l1/transition')
+			.set('Authorization', `Bearer ${salesToken}`)
+			.send({ to_stage_id: 'new' });
+		expect(res.status).toBe(200);
 		expect(auditModel.insertAudit).toHaveBeenCalled();
 	});
 });
