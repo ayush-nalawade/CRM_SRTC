@@ -5,6 +5,7 @@ const customFieldsRoutes = require('./custom-fields.routes');
 const leadCustomFieldsRoutes = require('./lead-custom-fields.routes');
 const stagesRoutes = require('./stages.routes');
 const journeyRoutes = require('./journey.routes');
+const activitiesRoutes = require('./activities.routes');
 
 const router = express.Router();
 
@@ -18,6 +19,7 @@ router.use('/', customFieldsRoutes);
 router.use('/', leadCustomFieldsRoutes);
 router.use('/', stagesRoutes);
 router.use('/', journeyRoutes);
+router.use('/', activitiesRoutes);
 
 module.exports = router;
 
